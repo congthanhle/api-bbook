@@ -25,4 +25,11 @@ export class DashboardController {
   getOccupancy(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
     return this.dashboardService.getOccupancy(startDate, endDate);
   }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get full dashboard statistics' })
+  @ApiQuery({ name: 'period', required: false, type: String, example: 'today' })
+  getStats(@Query('period') period: string) {
+    return this.dashboardService.getStats(period);
+  }
 }
