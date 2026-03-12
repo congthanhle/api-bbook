@@ -26,8 +26,9 @@ export class UpdateSlotStatusDto {
   @IsNotEmpty()
   date!: string;
 
-  @ApiProperty({ example: 'slot-uuid' })
-  @IsUUID('4')
+  @ApiProperty({ example: 'slot-uuid or HHmm time id' })
+  @IsString()
+  @IsNotEmpty()
   timeSlotId!: string;
 
   @ApiProperty({ enum: ['available', 'locked', 'maintenance'] })
@@ -51,7 +52,8 @@ export class BulkSlotItem {
   courtId!: string;
 
   @ApiProperty()
-  @IsUUID('4')
+  @IsString()
+  @IsNotEmpty()
   timeSlotId!: string;
 
   @ApiProperty({ enum: ['available', 'locked', 'maintenance'] })

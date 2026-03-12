@@ -178,13 +178,16 @@ export class OverviewService {
    * Cannot manually change a 'booked' slot — use bookings API to cancel.
    */
   async updateSlotStatus(dto: UpdateSlotStatusDto, userId: string) {
+    // Resolve time slot ID (may be HHmm format from frontend)
+    const resolvedTimeSlotId = await this.resolveTimeSlotId(dto.timeSlotId);
+
     // Check if current slot is booked
     const { data: existing } = await this.db
       .from('court_slot_overrides')
       .select('status, booking_id')
       .eq('court_id', dto.courtId)
       .eq('date', dto.date)
-      .eq('time_slot_id', dto.timeSlotId)
+      .eq('time_slot_id', resolvedTimeSlotId)
       .single();
 
     if (existing?.status === 'booked') {
@@ -201,13 +204,13 @@ export class OverviewService {
         .delete()
         .eq('court_id', dto.courtId)
         .eq('date', dto.date)
-        .eq('time_slot_id', dto.timeSlotId);
+        .eq('time_slot_id', resolvedTimeSlotId);
     } else if (dto.status !== 'available') {
       await this.db.from('court_slot_overrides').upsert(
         {
           court_id: dto.courtId,
           date: dto.date,
-          time_slot_id: dto.timeSlotId,
+          time_slot_id: resolvedTimeSlotId,
           status: dto.status,
           locked_reason: dto.reason || null,
           locked_by: userId,
@@ -223,12 +226,20 @@ export class OverviewService {
    * Bulk-update slot statuses. Skips any slots that are currently booked.
    */
   async bulkUpdateSlots(dto: BulkUpdateSlotsDto, userId: string) {
-    // Batch-fetch existing overrides for these slots
-    const slotKeys = dto.slots.map(
+    // 1. Resolve all timeSlotIds (HHmm -> UUID mapping)
+    const resolvedSlots = await Promise.all(
+      dto.slots.map(async (slot) => {
+        const resolvedId = await this.resolveTimeSlotId(slot.timeSlotId);
+        return { ...slot, timeSlotId: resolvedId };
+      })
+    );
+
+    // 2. Batch-fetch existing overrides for these slots
+    const slotKeys = resolvedSlots.map(
       (s) => `${s.courtId}_${s.timeSlotId}`,
     );
 
-    const courtIds = [...new Set(dto.slots.map((s) => s.courtId))];
+    const courtIds = [...new Set(resolvedSlots.map((s) => s.courtId))];
 
     const { data: existingOverrides } = await this.db
       .from('court_slot_overrides')
@@ -247,7 +258,7 @@ export class OverviewService {
     const toDelete: { courtId: string; timeSlotId: string }[] = [];
     const skipped: { courtId: string; timeSlotId: string; reason: string }[] = [];
 
-    for (const slot of dto.slots) {
+    for (const slot of resolvedSlots) {
       const key = `${slot.courtId}_${slot.timeSlotId}`;
       const existing = existingMap.get(key) as Record<string, unknown> | undefined;
 
@@ -302,6 +313,33 @@ export class OverviewService {
       skipped: skipped.length,
       skippedReasons: skipped,
     };
+  }
+
+  /**
+   * Resolve a time slot identifier to a UUID.
+   * Accepts either a UUID (passed through) or an HHmm-format string (e.g., '0600')
+   * which is resolved by looking up the time_slots table by label (e.g., '06:00').
+   */
+  private async resolveTimeSlotId(timeSlotId: string): Promise<string> {
+    // Check if it's already a UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(timeSlotId)) {
+      return timeSlotId;
+    }
+
+    // Convert HHmm to HH:MM label format for lookup
+    const label = `${timeSlotId.substring(0, 2)}:${timeSlotId.substring(2, 4)}`;
+    const { data, error } = await this.db
+      .from('time_slots')
+      .select('id')
+      .eq('label', label)
+      .single();
+
+    if (error || !data) {
+      throw new BadRequestException(`Time slot not found for identifier: ${timeSlotId}`);
+    }
+
+    return data.id;
   }
 
   // ──────────────────────────────────────────────────────────

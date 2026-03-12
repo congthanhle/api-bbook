@@ -462,12 +462,19 @@ export class CourtsService {
       throw error;
     }
 
+    const price = (data as number) || 0;
+
     return {
       courtId,
       date,
       startTime,
       endTime,
-      totalPrice: data as number,
+      courtFee: price,
+      totalAmount: price,
+      currency: 'VND',
+      details: [
+        { label: `Court fee (${startTime} – ${endTime})`, amount: price },
+      ],
     };
   }
 
