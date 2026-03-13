@@ -56,6 +56,16 @@ export class CreateStaffDto {
   avatarUrl?: string;
 
   // ── Employment ────────────────────────────────────────
+  
+  @ApiPropertyOptional({ example: 'staff', description: 'Staff role (admin, staff)' })
+  @IsString()
+  @IsOptional()
+  role?: string;
+
+  @ApiPropertyOptional({ example: 'active', description: 'Staff status (active, inactive)' })
+  @IsString()
+  @IsOptional()
+  status?: string;
 
   @ApiProperty({ example: 8000000, description: 'Salary amount (integer)' })
   @IsInt({ message: 'Salary must be an integer' })

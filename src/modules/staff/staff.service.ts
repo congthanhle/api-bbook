@@ -134,10 +134,7 @@ export class StaffService {
 
     // Fetch email
     const { data: authUser } = await client.auth.admin.getUserById(userId);
-    const result = {
-      ...data,
-      email: authUser?.user?.email || null,
-    };
+    const result = this.mapToStaffDto(data, authUser?.user?.email || null);
 
     // Strip sensitive fields for staff
     return sanitizeForRole(result as Record<string, unknown>, 'staff');
@@ -183,10 +180,7 @@ export class StaffService {
     // Fetch email
     const { data: authUser } = await client.auth.admin.getUserById(id);
 
-    return {
-      ...data,
-      email: authUser?.user?.email || null,
-    };
+    return this.mapToStaffDto(data, authUser?.user?.email || null);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -210,7 +204,7 @@ export class StaffService {
         email_confirm: true,
         user_metadata: {
           name: dto.name,
-          role: 'staff',
+          role: dto.role || 'staff',
         },
       });
 
@@ -234,7 +228,8 @@ export class StaffService {
             name: dto.name,
             phone: dto.phone || null,
             avatar_url: dto.avatarUrl || null,
-            role: 'staff',
+            role: dto.role || 'staff',
+            is_active: dto.status !== 'inactive',
           },
           { onConflict: 'id' },
         );
@@ -325,6 +320,8 @@ export class StaffService {
     if (dto.name !== undefined) userUpdate['name'] = dto.name;
     if (dto.phone !== undefined) userUpdate['phone'] = dto.phone;
     if (dto.avatarUrl !== undefined) userUpdate['avatar_url'] = dto.avatarUrl;
+    if (dto.role !== undefined) userUpdate['role'] = dto.role;
+    if (dto.status !== undefined) userUpdate['is_active'] = dto.status !== 'inactive';
 
     if (Object.keys(userUpdate).length > 0) {
       const { error } = await adminClient
@@ -335,6 +332,13 @@ export class StaffService {
       if (error) {
         this.logger.error(`Failed to update user: ${error.message}`);
         throw new InternalServerErrorException('Failed to update user');
+      }
+
+      // Also update auth user metadata if role changed
+      if (dto.role !== undefined) {
+        await adminClient.auth.admin.updateUserById(id, {
+          user_metadata: { role: dto.role },
+        });
       }
     }
 
@@ -353,8 +357,10 @@ export class StaffService {
     if (Object.keys(profileUpdate).length > 0) {
       const { error } = await adminClient
         .from('staff_profiles')
-        .update(profileUpdate)
-        .eq('user_id', id);
+        .upsert(
+          { user_id: id, ...profileUpdate },
+          { onConflict: 'user_id' }
+        );
 
       if (error) {
         this.logger.error(`Failed to update staff profile: ${error.message}`);
@@ -469,12 +475,41 @@ export class StaffService {
       const { data: authUser } = await client.auth.admin.getUserById(
         user['id'] as string,
       );
-      results.push({
-        ...user,
-        email: authUser?.user?.email || null,
-      });
+      results.push(this.mapToStaffDto(user, authUser?.user?.email || null));
     }
 
     return results;
+  }
+
+  /**
+   * Flattens the staff record and maps snake_case DB columns to camelCase DTOs.
+   */
+  private mapToStaffDto(user: Record<string, any>, email: string | null = null) {
+    const profile = Array.isArray(user['staff_profiles']) 
+      ? user['staff_profiles'][0] 
+      : user['staff_profiles'] || {};
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: email,
+      phone: user.phone || undefined,
+      avatarUrl: user.avatar_url || undefined,
+      role: user.role,
+      isActive: user.is_active,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+      
+      // Flattened profile fields
+      salary: profile.salary,
+      salaryType: profile.salary_type,
+      hireDate: profile.hire_date,
+      notes: profile.notes || undefined,
+      bankName: profile.bank_name || undefined,
+      bankAccountNumber: profile.bank_account_number || undefined,
+      bankAccountName: profile.bank_account_name || undefined,
+      idCardNumber: profile.id_card_number || undefined,
+      address: profile.address || undefined,
+    };
   }
 }
