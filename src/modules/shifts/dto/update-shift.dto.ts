@@ -1,7 +1,8 @@
 // src/modules/shifts/dto/update-shift.dto.ts
 
-import { OmitType, PartialType } from '@nestjs/swagger';
-import { CreateShiftDto } from './create-shift.dto';
+import { OmitType, PartialType, ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsNotEmpty } from 'class-validator';
+import { CreateShiftDto, ShiftStatus } from './create-shift.dto';
 
 /**
  * DTO for updating a shift (admin only).
@@ -10,3 +11,10 @@ import { CreateShiftDto } from './create-shift.dto';
 export class UpdateShiftDto extends PartialType(
   OmitType(CreateShiftDto, ['staffIds'] as const),
 ) {}
+
+export class UpdateShiftStatusDto {
+  @ApiProperty({ enum: ShiftStatus, description: 'Force shift status' })
+  @IsEnum(ShiftStatus)
+  @IsNotEmpty()
+  status!: ShiftStatus;
+}

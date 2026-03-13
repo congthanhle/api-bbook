@@ -25,6 +25,8 @@ import { ShiftsService } from './shifts.service';
 import {
   CreateShiftDto,
   UpdateShiftDto,
+  UpdateShiftStatusDto,
+  BulkCreateShiftDto,
   AssignStaffDto,
   CheckInDto,
   ShiftQueryDto,
@@ -89,6 +91,20 @@ export class ShiftsController {
     return this.shiftsService.create(dto, adminId);
   }
 
+  // ── POST /shifts/bulk ───────────────────────────────────
+  @Post('bulk')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Bulk create shifts via date range (admin only)' })
+  @ApiCreatedResponse({ description: 'Shifts created' })
+  @ApiBadRequestResponse({ description: 'Invalid date range' })
+  @ApiConflictResponse({ description: 'Staff scheduling conflict' })
+  createBulk(
+    @Body() dto: BulkCreateShiftDto,
+    @CurrentUser('sub') adminId: string,
+  ) {
+    return this.shiftsService.createBulk(dto, adminId);
+  }
+
   // ── PATCH /shifts/:id ───────────────────────────────────
   @Patch(':id')
   @Roles('admin')
@@ -100,6 +116,19 @@ export class ShiftsController {
     @Body() dto: UpdateShiftDto,
   ) {
     return this.shiftsService.update(id, dto);
+  }
+
+  // ── PATCH /shifts/:id/status ────────────────────────────
+  @Patch(':id/status')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Update a shift status (admin only)' })
+  @ApiOkResponse({ description: 'Shift status updated' })
+  @ApiNotFoundResponse({ description: 'Shift not found' })
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateShiftStatusDto,
+  ) {
+    return this.shiftsService.updateStatus(id, dto);
   }
 
   // ── DELETE /shifts/:id ──────────────────────────────────

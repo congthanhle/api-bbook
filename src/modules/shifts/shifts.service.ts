@@ -16,6 +16,7 @@ import {
   AssignStaffDto,
   ShiftQueryDto,
   ShiftStatus,
+  BulkCreateShiftDto,
 } from './dto';
 import { normalisePagination, buildPaginationMeta } from '../../common/utils/pagination.helper';
 
@@ -201,6 +202,9 @@ export class ShiftsService {
 
     const client = this.supabase.getClient(true);
 
+    // Calculate status based on now
+    const status = this.calculateStatus(dto.date, dto.startTime, dto.endTime);
+
     // Insert shift
     const { data: shift, error } = await client
       .from('shifts')
@@ -210,7 +214,7 @@ export class ShiftsService {
         start_time: dto.startTime,
         end_time: dto.endTime,
         notes: dto.notes || null,
-        status: ShiftStatus.UPCOMING,
+        status,
         created_by: adminId,
       })
       .select()
@@ -260,6 +264,43 @@ export class ShiftsService {
     return this.findOne(shift.id, { sub: adminId, email: '', role: 'admin' });
   }
 
+  /**
+   * Bulk creates shifts across a date range (admin only).
+   */
+  async createBulk(dto: BulkCreateShiftDto, adminId: string) {
+    const start = new Date(dto.startDate);
+    const end = new Date(dto.endDate);
+    const createdShifts = [];
+
+    // Simple loop through days
+    const current = new Date(start);
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0];
+      
+      const createDto: CreateShiftDto = {
+        name: dto.name,
+        date: dateStr,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        notes: dto.notes,
+        staffIds: dto.staffIds,
+      };
+
+      try {
+        const shift = await this.create(createDto, adminId);
+        createdShifts.push(shift);
+      } catch (e) {
+        this.logger.warn(`Bulk creation: skipped conflict on ${dateStr}`);
+        // For bulk, we might want to continue or collect errors. 
+        // Let's collect and return successfully created ones for now.
+      }
+      
+      current.setDate(current.getDate() + 1);
+    }
+
+    return createdShifts;
+  }
+
   // ──────────────────────────────────────────────────────────
   // UPDATE
   // ──────────────────────────────────────────────────────────
@@ -286,9 +327,44 @@ export class ShiftsService {
       throw new BadRequestException('No fields to update');
     }
 
+    const { data: current } = await client
+      .from('shifts')
+      .select('date, start_time, end_time, status')
+      .eq('id', id)
+      .single();
+
+    if (!current) throw new NotFoundException(`Shift "${id}" not found`);
+
+    if (dto.date || dto.startTime || dto.endTime) {
+      const newDate = dto.date ?? current.date;
+      const newStart = dto.startTime ?? current.start_time;
+      const newEnd = dto.endTime ?? current.end_time;
+      updateData['status'] = this.calculateStatus(newDate, newStart, newEnd);
+    }
+
     const { data, error } = await client
       .from('shifts')
       .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new NotFoundException(`Shift "${id}" not found`);
+    }
+
+    return data;
+  }
+
+  /**
+   * Manually updates a shift status (admin only).
+   */
+  async updateStatus(id: string, dto: { status: ShiftStatus }) {
+    const client = this.supabase.getClient(true);
+
+    const { data, error } = await client
+      .from('shifts')
+      .update({ status: dto.status })
       .eq('id', id)
       .select()
       .single();
@@ -700,5 +776,24 @@ export class ShiftsService {
     }
 
     return qb;
+  }
+
+  /**
+   * Calculates shift status based on the current system time.
+   */
+  private calculateStatus(date: string, startTime: string, endTime: string): ShiftStatus {
+    const now = new Date();
+    // Shift end: date T endTime
+    const shiftEnd = new Date(`${date}T${endTime}`);
+    // Shift start: date T startTime
+    const shiftStart = new Date(`${date}T${startTime}`);
+
+    if (now > shiftEnd) {
+      return ShiftStatus.COMPLETED;
+    } else if (now >= shiftStart && now <= shiftEnd) {
+      return ShiftStatus.ONGOING;
+    } else {
+      return ShiftStatus.UPCOMING;
+    }
   }
 }

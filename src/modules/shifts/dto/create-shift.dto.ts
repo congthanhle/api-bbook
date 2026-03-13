@@ -9,6 +9,7 @@ import {
   IsUUID,
   IsDateString,
   Matches,
+  IsEnum
 } from 'class-validator';
 
 /**
@@ -58,4 +59,9 @@ export class CreateShiftDto {
   @IsUUID('4', { each: true, message: 'Each staffId must be a valid UUID' })
   @IsOptional()
   staffIds?: string[];
+  
+  @ApiPropertyOptional({ enum: ShiftStatus, description: 'Force shift status' })
+  @IsEnum(ShiftStatus)
+  @IsOptional()
+  status?: ShiftStatus;
 }
