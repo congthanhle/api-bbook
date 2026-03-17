@@ -1,0 +1,83 @@
+﻿node.exe : C:\Users\chip3\
+OneDrive\Desktop\workspace
+\New folder\admin\api\node
+_modules\ts-node\src\index
+.ts:859
+At line:1 char:1
++ & "C:\nvm4w\nodejs/node.
+exe" "C:\nvm4w\nodejs/node
+_modules/npm/bin/np ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (C  
+  :\Users\chip3\...rc\i   
+ ndex.ts:859:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+    return new 
+TSError(diagnosticText, 
+diagnosticCodes, 
+diagnostics);
+           ^
+TSError: Γ¿» Unable to 
+compile TypeScript:
+seed-products.ts(3,33): 
+error TS2307: Cannot find 
+module './src/modules/data
+base/supabase.service' or 
+its corresponding type 
+declarations.
+
+    at createTSError (C:\U
+sers\chip3\OneDrive\Deskto
+p\workspace\New folder\adm
+in\api\node_modules\ts-nod
+e\src\index.ts:859:12)
+    at reportTSError (C:\U
+sers\chip3\OneDrive\Deskto
+p\workspace\New folder\adm
+in\api\node_modules\ts-nod
+e\src\index.ts:863:19)
+    at getOutput (C:\Users
+\chip3\OneDrive\Desktop\wo
+rkspace\New folder\admin\a
+pi\node_modules\ts-node\sr
+c\index.ts:1077:36)
+    at Object.compile (C:\
+Users\chip3\OneDrive\Deskt
+op\workspace\New folder\ad
+min\api\node_modules\ts-no
+de\src\index.ts:1433:41)
+    at Module.m._compile (
+C:\Users\chip3\OneDrive\De
+sktop\workspace\New folder
+\admin\api\node_modules\ts
+-node\src\index.ts:1617:30
+)
+    at node:internal/modul
+es/cjs/loader:1824:10
+    at Object.require.exte
+nsions.<computed> [as 
+.ts] (C:\Users\chip3\OneDr
+ive\Desktop\workspace\New 
+folder\admin\api\node_modu
+les\ts-node\src\index.ts:1
+621:12)
+    at Module.load (node:i
+nternal/modules/cjs/loader
+:1427:32)
+    at Module._load (node:
+internal/modules/cjs/loade
+r:1250:12)
+    at 
+TracingChannel.traceSync (
+node:diagnostics_channel:3
+22:14) {
+  diagnosticCodes: [ 2307 
+]
+}

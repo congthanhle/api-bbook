@@ -1,7 +1,7 @@
 // src/modules/products/dto/create-product.dto.ts
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsIn, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsNumber, IsIn, Min, IsBoolean } from 'class-validator';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Yonex Aerosensa 50' })
@@ -45,4 +45,9 @@ export class CreateProductDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }

@@ -7,10 +7,10 @@ CREATE TABLE IF NOT EXISTS products (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   category    product_category NOT NULL,
-  price       INTEGER NOT NULL CHECK (price >= 0),  -- VND
-  unit        TEXT NOT NULL DEFAULT 'pcs',
-  stock       INTEGER,        -- NULL = unlimited / service type
-  is_service  BOOLEAN NOT NULL DEFAULT false,
+  price       NUMERIC(10,2) NOT NULL CHECK (price >= 0),  -- Selling price
+  cost_price  NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (cost_price >= 0),
+  stock_qty   INTEGER NOT NULL DEFAULT 0,
+  sku         TEXT,
   image_url   TEXT,
   description TEXT,
   is_active   BOOLEAN NOT NULL DEFAULT true,

@@ -17,8 +17,21 @@ export class ProductsController {
   @ApiOperation({ summary: 'List products' })
   @ApiQuery({ name: 'page', required: false }) @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'category', required: false })
-  findAll(@Query('page') page?: number, @Query('limit') limit?: number, @Query('category') category?: string) {
-    return this.productsService.findAll({ page, limit, category });
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  findAll(
+    @Query('page') page?: number, 
+    @Query('limit') limit?: number, 
+    @Query('category') category?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    const isActiveBool = isActive === undefined ? undefined : isActive === 'true';
+    return this.productsService.findAll({ page, limit, category, isActive: isActiveBool });
+  }
+
+  @Get('low-stock')
+  @ApiOperation({ summary: 'List low stock products' })
+  findLowStock() {
+    return this.productsService.findLowStock();
   }
 
   @Get(':id')

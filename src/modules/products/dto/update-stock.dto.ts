@@ -1,10 +1,21 @@
 // src/modules/products/dto/update-stock.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdateStockDto {
-  @ApiProperty({ example: 10, description: 'New stock quantity' })
+  @ApiPropertyOptional({ example: 10, description: 'New stock quantity' })
   @IsNumber()
-  stockQty!: number;
+  @IsOptional()
+  stockQty?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'Stock adjustment (positive or negative)' })
+  @IsNumber()
+  @IsOptional()
+  adjustment?: number;
+
+  @ApiPropertyOptional({ example: 'Restock', description: 'Reason for adjustment' })
+  @IsString()
+  @IsOptional()
+  reason?: string;
 }

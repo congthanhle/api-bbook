@@ -1,6 +1,6 @@
 // src/modules/products/products.service.ts
 
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../../database/supabase.service';
 import { CreateProductDto, UpdateProductDto, UpdateStockDto } from './dto';
 import { normalisePagination, buildPaginationMeta } from '../../common/utils/pagination.helper';
@@ -16,16 +16,26 @@ export class ProductsService {
   constructor(private readonly supabase: SupabaseService) {}
 
   /** Returns a paginated list of products. */
-  async findAll(query: PaginationQuery & { category?: string }) {
+  async findAll(query: PaginationQuery & { category?: string, isActive?: boolean }) {
     const { page, limit, offset } = normalisePagination(query);
     const client = this.supabase.getClient(true);
 
-    let qb = client.from('products').select('*', { count: 'exact' }).eq('is_active', true).order('name', { ascending: true });
+    let qb = client.from('products').select('*', { count: 'exact' }).order('name', { ascending: true });
     if (query.category) qb = qb.eq('category', query.category);
+    if (query.isActive !== undefined) {
+      qb = qb.eq('is_active', query.isActive);
+    }
 
     const { data, error, count } = await qb.range(offset, offset + limit - 1);
     if (error) { this.logger.error(`Failed to fetch products: ${error.message}`); throw error; }
-    return { data: data || [], meta: buildPaginationMeta(count || 0, page, limit) };
+    const total = count || 0;
+    return {
+      data: data || [],
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   /** Finds a single product by ID. */
@@ -34,6 +44,21 @@ export class ProductsService {
     const { data, error } = await client.from('products').select('*').eq('id', id).single();
     if (error || !data) throw new NotFoundException(`Product "${id}" not found`);
     return data;
+  }
+
+  /** Returns low stock products. */
+  async findLowStock() {
+    const client = this.supabase.getClient(true);
+    const { data, error } = await client
+      .from('products')
+      .select('*')
+      .eq('is_active', true)
+      .lte('stock_qty', 10)
+      .order('stock_qty', { ascending: true });
+
+    if (error) { this.logger.error(`Failed to fetch low stock products: ${error.message}`); throw error; }
+    
+    return data || [];
   }
 
   /** Creates a new product. */
@@ -63,6 +88,7 @@ export class ProductsService {
     if (dto.stockQty !== undefined) updateData['stock_qty'] = dto.stockQty;
     if (dto.sku !== undefined) updateData['sku'] = dto.sku;
     if (dto.imageUrl !== undefined) updateData['image_url'] = dto.imageUrl;
+    if (dto.isActive !== undefined) updateData['is_active'] = dto.isActive;
 
     const { data, error } = await client.from('products').update(updateData).eq('id', id).select().single();
     if (error || !data) throw new NotFoundException(`Product "${id}" not found`);
@@ -72,7 +98,25 @@ export class ProductsService {
   /** Updates product stock quantity. */
   async updateStock(id: string, dto: UpdateStockDto) {
     const client = this.supabase.getClient(true);
-    const { data, error } = await client.from('products').update({ stock_qty: dto.stockQty }).eq('id', id).select().single();
+
+    let newStockQty: number;
+
+    if (dto.stockQty !== undefined) {
+      newStockQty = dto.stockQty;
+    } else if (dto.adjustment !== undefined) {
+      const { data: currentProduct, error: fetchError } = await client
+        .from('products')
+        .select('stock_qty')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError || !currentProduct) throw new NotFoundException(`Product "${id}" not found`);
+      newStockQty = currentProduct.stock_qty + dto.adjustment;
+    } else {
+      throw new BadRequestException('Either stockQty or adjustment must be provided');
+    }
+
+    const { data, error } = await client.from('products').update({ stock_qty: newStockQty }).eq('id', id).select().single();
     if (error || !data) throw new NotFoundException(`Product "${id}" not found`);
     return data;
   }
