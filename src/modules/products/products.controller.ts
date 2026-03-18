@@ -55,6 +55,6 @@ export class ProductsController {
 
   @Delete(':id')
   @UseGuards(RolesGuard) @Roles('admin', 'manager')
-  @ApiOperation({ summary: 'Deactivate a product' })
+  @ApiOperation({ summary: 'Delete a product (soft delete)' })
   remove(@Param('id') id: string) { return this.productsService.remove(id); }
 }

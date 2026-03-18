@@ -20,7 +20,7 @@ export class ProductsService {
     const { page, limit, offset } = normalisePagination(query);
     const client = this.supabase.getClient(true);
 
-    let qb = client.from('products').select('*', { count: 'exact' }).order('name', { ascending: true });
+    let qb = client.from('products').select('*', { count: 'exact' }).order('name', { ascending: true }).is('deleted_at', null);
     if (query.category) qb = qb.eq('category', query.category);
     if (query.isActive !== undefined) {
       qb = qb.eq('is_active', query.isActive);
@@ -41,7 +41,7 @@ export class ProductsService {
   /** Finds a single product by ID. */
   async findOne(id: string) {
     const client = this.supabase.getClient(true);
-    const { data, error } = await client.from('products').select('*').eq('id', id).single();
+    const { data, error } = await client.from('products').select('*').eq('id', id).is('deleted_at', null).single();
     if (error || !data) throw new NotFoundException(`Product "${id}" not found`);
     return data;
   }
@@ -52,6 +52,7 @@ export class ProductsService {
     const { data, error } = await client
       .from('products')
       .select('*')
+      .is('deleted_at', null)
       .eq('is_active', true)
       .lte('stock_qty', 10)
       .order('stock_qty', { ascending: true });
@@ -90,7 +91,7 @@ export class ProductsService {
     if (dto.imageUrl !== undefined) updateData['image_url'] = dto.imageUrl;
     if (dto.isActive !== undefined) updateData['is_active'] = dto.isActive;
 
-    const { data, error } = await client.from('products').update(updateData).eq('id', id).select().single();
+    const { data, error } = await client.from('products').update(updateData).eq('id', id).is('deleted_at', null).select().single();
     if (error || !data) throw new NotFoundException(`Product "${id}" not found`);
     return data;
   }
@@ -108,6 +109,7 @@ export class ProductsService {
         .from('products')
         .select('stock_qty')
         .eq('id', id)
+        .is('deleted_at', null)
         .single();
       
       if (fetchError || !currentProduct) throw new NotFoundException(`Product "${id}" not found`);
@@ -116,7 +118,7 @@ export class ProductsService {
       throw new BadRequestException('Either stockQty or adjustment must be provided');
     }
 
-    const { data, error } = await client.from('products').update({ stock_qty: newStockQty }).eq('id', id).select().single();
+    const { data, error } = await client.from('products').update({ stock_qty: newStockQty }).eq('id', id).is('deleted_at', null).select().single();
     if (error || !data) throw new NotFoundException(`Product "${id}" not found`);
     return data;
   }
@@ -124,8 +126,16 @@ export class ProductsService {
   /** Soft-deletes a product. */
   async remove(id: string) {
     const client = this.supabase.getClient(true);
-    const { error } = await client.from('products').update({ is_active: false }).eq('id', id);
-    if (error) throw new NotFoundException(`Product "${id}" not found`);
-    return { message: 'Product deactivated successfully' };
+    const { error } = await client
+      .from('products')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null);
+      
+    if (error) {
+      this.logger.error(`Failed to delete product: ${error.message}`);
+      throw new NotFoundException(`Product "${id}" not found or error occurred`);
+    }
+    return { message: 'Product deleted successfully' };
   }
 }
