@@ -67,12 +67,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
-    if (!user.is_active) {
-      throw new UnauthorizedException('Account has been deactivated');
-    }
-
     return {
       id: user.id,
+      sub: user.id,
       name: user.name,
       email: payload.email,
       role: user.role,

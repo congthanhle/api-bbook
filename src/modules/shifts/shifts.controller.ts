@@ -63,6 +63,18 @@ export class ShiftsController {
     return this.shiftsService.getMonthlyCalendar(month, user);
   }
 
+  // ── GET /shifts/my ──────────────────────────────────────
+  @Get('my')
+  @Roles('admin', 'staff')
+  @ApiOperation({ summary: 'List shifts assigned to the current user' })
+  @ApiOkResponse({ description: 'List of shifts for the current user' })
+  getMyShifts(
+    @Query() query: ShiftQueryDto,
+    @CurrentUser() user: { sub: string; email: string; role: string },
+  ) {
+    return this.shiftsService.findAll(query, { ...user, role: 'staff' });
+  }
+
   // ── GET /shifts/:id ─────────────────────────────────────
   @Get(':id')
   @Roles('admin', 'staff')
